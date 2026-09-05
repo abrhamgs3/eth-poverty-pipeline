@@ -115,14 +115,37 @@ We use the same World Bank Ethiopia Socioeconomic Survey (ESS) household panel d
 
 We define a household-wave as poor if its consumption falls in the bottom third of its \emph{own wave's} distribution. This is a relative, within-wave definition, not an absolute poverty line: \texttt{nom\_totcons\_aeq} is nominal Ethiopian birr, not deflated across the 2011--2015 study period, so a fixed cross-wave birr threshold would conflate ``poor by 2011 prices'' with ``poor by 2015 prices.'' Section~\ref{sec:results} reports robustness to this threshold choice (quartile through median).
 
+\paragraph{The gold standard is not noise-free either.} We label $D^{*}$ ``true'' poverty status throughout, and it is the best available measure in this dataset, but consumption aggregates constructed from household surveys carry their own well-documented measurement error -- recall-period bias, seasonal consumption smoothing, and aggregation-rule sensitivity are exactly what the LSMS methodology literature on constructing consumption aggregates exists to manage \citep{deaton2002guidelines}. This matters specifically for the validation exercise in Section~\ref{sec:screen}: the screen's TPR and TNR are computed \emph{against $D^{*}$}, so any noise in $D^{*}$ itself is folded into what we report as classifier error, rather than being a separate, quantified source of uncertainty. This is the same underlying concern documented for a related but distinct application in a companion project in this portfolio: \citet{burke2021using}'s ``noisy test data'' problem for satellite-based wealth prediction, where evaluating a model against a noisy observed label understates its true skill. We do not attempt to disentangle screen error from gold-standard error here, and flag this as an assumption rather than a demonstrated non-issue.
+
 \subsection{The simulated AI screen}
 \label{sec:screen}
 
 The real ESS instrument has no free-text field, so there is no real record of an LLM (or any other) classifier's output to use directly. We instead construct, for each household-wave, a short field note from covariates already present in the panel -- household size, distance to the nearest market, elevation, this year's rainfall anomaly, and reported weather shocks -- framed as a community health worker's brief home-visit note, and deliberately \emph{excluding} consumption itself, since including it would make the classification task circular. A mock classifier is then handed the note and the true label, and flips the label with a probability calibrated to hit a target accuracy (80\% in our main specification); it does not read the note's content, since the point of this design is to obtain a classifier with a known, controlled, reproducible error rate against which to evaluate the correction -- not to evaluate any specific real classifier's real accuracy on this task. We are explicit that this is a controlled instrument for isolating the measurement-error mechanism, not a claim about what accuracy a real LLM would achieve reading real household descriptions; Section~\ref{sec:discussion} returns to this distinction.
 
+\paragraph{Structured output and the real-classifier interface.} Every annotation, mock or real, is validated against a schema (three fields: a poverty-status label, a bounded confidence score, and a short rationale) before it enters the pipeline, so a malformed or missing field fails fast at the annotation stage rather than silently corrupting downstream metrics -- a schema-constrained decoding failure and a classification error are kept structurally distinct. The accompanying repository also implements, but does not use for any result in this paper, a real structured-output client against a commercial LLM API, callable via a command-line flag. That client sets its decoding temperature to $0.2$, following the low-temperature convention for annotation-style classification tasks used in \citet{gilardi2023chatgpt} and elsewhere, on the standard rationale that lower temperature reduces run-to-run sampling variance and improves reproducibility for a task with a single correct structured answer rather than open-ended generation. This parameter is inapplicable, not merely unset, for every result actually reported here: the mock classifier's only randomness is a single Bernoulli draw deciding whether to flip the true label, with no language-model decoding step for a temperature to govern. We note this distinction explicitly because it is easy to elide -- a reader could otherwise reasonably assume a ``temperature'' was tuned for the reported results, when no sampling of that kind occurs in this paper's simulation.
+
 \subsection{Validation and study samples}
 
-We split the 4,853 household-waves into a 20\% validation sample ($n=970$) used only to estimate the screen's TPR and TNR, and an 80\% study sample ($n=3{,}883$) used for all three regressions in Section~\ref{sec:strategy}. On the validation sample, the realized screen achieves TPR$=0.762$, TNR$=0.813$ (accuracy $=0.797$, Cohen's $\kappa=0.548$) -- realistically imperfect, not an idealized round number, since it is drawn from the same finite-sample randomness as everything else in this design.
+We split the 4,853 household-waves into a 20\% validation sample ($n=970$) used only to estimate the screen's TPR and TNR, and an 80\% study sample ($n=3{,}883$) used for all three regressions in Section~\ref{sec:strategy}. Table~\ref{tab:confusion} reports the full validation breakdown: accuracy $0.797$, Cohen's $\kappa=0.548$, and F1 $=0.700$, alongside the confusion matrix each rate is computed from -- we report the counts directly, not only the derived rates, so that TPR and TNR (the quantities Equations~\ref{eq:rogan-gladen}--\ref{eq:beta-correction} actually consume) are independently verifiable rather than taken on faith. This is realistically imperfect, not an idealized round number, since it is drawn from the same finite-sample randomness as everything else in this design.
+
+\begin{table}[htbp]
+\centering
+\caption{Validation-sample classification performance ($n=970$)}
+\label{tab:confusion}
+\begin{tabular}{lc}
+\toprule
+Metric & Value \\
+\midrule
+Accuracy & 0.797 \\
+Cohen's $\kappa$ & 0.548 \\
+F1 & 0.700 \\
+TPR (sensitivity) & 0.762 \\
+TNR (specificity) & 0.813 \\
+\midrule
+\multicolumn{2}{l}{Confusion matrix: TP=230, FP=125, FN=72, TN=543} \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \section{Empirical Strategy}
 \label{sec:strategy}
