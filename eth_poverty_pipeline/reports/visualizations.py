@@ -1,13 +1,16 @@
-"""Chart generation for the poverty-to-child-health effect comparison.
+"""Chart generation for the poverty-HAZ association comparison.
 
 Imports ``matplotlib`` lazily and forces the ``Agg`` backend before
 ``pyplot`` is touched, so importing this module never depends on a
 display - matters for headless CI and this project's own test suite.
 
-Unlike a pure simulation, there's no known ground-truth effect to draw a
-"true value" line at - the reference line here is the benchmark model's
-own (real-data) point estimate, itself an estimate with uncertainty, not
-an oracle.
+Unlike a pure simulation, there's no known ground-truth association value
+to draw a "true value" line at - the reference line here is the benchmark
+model's own (real-data) point estimate, itself an estimate with
+uncertainty, not an oracle. Labels throughout say "association" /
+"coefficient", not "effect": this is a bivariate regression with no
+controls for confounders (see the manuscript's Section 4), and nothing in
+this chart should read as a causal claim.
 """
 
 from __future__ import annotations
@@ -70,8 +73,8 @@ def plot_treatment_effect_comparison(
 
     ax.set_xticks(range(len(names)))
     ax.set_xticklabels(names, fontsize=11, fontweight="bold")
-    ax.set_ylabel("Estimated Effect of Poverty on Mean HAZ", fontsize=12, fontweight="bold")
-    ax.set_title("Correcting for AI-Screening Error in a Poverty-to-Child-Health Estimate", fontsize=13, fontweight="bold", pad=15)
+    ax.set_ylabel("Estimated Association Between Poverty and Mean HAZ", fontsize=12, fontweight="bold")
+    ax.set_title("Correcting for AI-Screening Error in a Poverty-HAZ Association Estimate", fontsize=13, fontweight="bold", pad=15)
     ax.set_xlim(-0.5, len(names) - 0.2)
     ax.grid(axis="y", linestyle=":", alpha=0.7)
     ax.legend(loc="upper right", frameon=True, facecolor="white", edgecolor="none")
