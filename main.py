@@ -1,0 +1,6 @@
+"""Convenience entry point: `python main.py [options]`."""
+
+from eth_poverty_pipeline.pipeline import main
+
+if __name__ == "__main__":
+    raise SystemExit(main())

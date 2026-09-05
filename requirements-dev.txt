@@ -1,0 +1,5 @@
+-r requirements.txt
+pytest>=7.0
+
+# Optional: enables `--client openai` for real annotation runs.
+openai>=1.0
