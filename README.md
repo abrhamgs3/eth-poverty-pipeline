@@ -9,6 +9,12 @@ instead of the real (expensive) measurement introduces attenuation bias —
 and how to correct for it — run on **real Ethiopian household survey
 data**, not a synthetic toy.
 
+A full manuscript write-up of this analysis — including a second finding
+not summarized below (the correction can numerically diverge by orders of
+magnitude at small validation-sample sizes, independent of the underlying
+screen's real accuracy) — is at
+[`paper/manuscript.pdf`](paper/manuscript.pdf).
+
 This is a companion methods piece to the
 [Ethiopia Development & Health Economics](../DHS) portfolio project: it
 reuses that project's real World Bank ESS/ERSS household panel (2011–2015)
@@ -188,6 +194,18 @@ numbers) matters even for a "demo" pipeline.
 
 ## Limitations
 
+- **The correction's denominator (TPR+TNR-1) can be small enough to make
+  the corrected estimate numerically unreliable even when it's positive.**
+  This isn't hypothetical: a systematic sweep for the accompanying
+  manuscript (`paper/manuscript.tex`, Section 5.2) found that at a
+  realistic small-survey validation size (n=38), 1 of 20 independent
+  splits of the *same* 80%-accurate screen produced an estimated skill of
+  0.114 — and a corrected coefficient of −34,545. The pipeline now warns
+  (`min_reliable_skill`, default 0.2 — see `--min-reliable-skill`) whenever
+  the estimated skill falls below this threshold; treat a flagged estimate
+  as unreliable rather than trusting the point value, regardless of how
+  confident it looks. This threshold is provisional, calibrated to one
+  accuracy level and one sample size, not a universal constant.
 - **Small validation split at low sample sizes.** `evaluation.metrics`
   warns below 30 examples; the default 20% split against the real panel's
   ~4,850 rows is comfortably large, but a custom `--data-path` with a

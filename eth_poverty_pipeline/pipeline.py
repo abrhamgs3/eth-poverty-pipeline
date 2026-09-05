@@ -79,14 +79,21 @@ def run_full_pipeline(
     tpr = quality_metrics["True_Positive_Rate_TPR"]
     tnr = quality_metrics["True_Negative_Rate_TNR"]
 
+    skill = tpr + tnr - 1.0
+    skill_reliable = skill >= config.min_reliable_skill
+
     with timer.time("econometrics"):
         benchmark_ols = SimpleOLS(df_study["mean_haz"].to_numpy(), df_study["D_true"].to_numpy()).fit()
         naive_ols = SimpleOLS(df_study["mean_haz"].to_numpy(), df_study["D_pred"].to_numpy()).fit()
 
-        corrected = run_bootstrap_inference(
-            df_study, y_col="mean_haz", x_noisy_col="D_pred", tpr=tpr, tnr=tnr,
-            n_boot=config.n_bootstrap, rng=rng,
-        )
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            corrected = run_bootstrap_inference(
+                df_study, y_col="mean_haz", x_noisy_col="D_pred", tpr=tpr, tnr=tnr,
+                n_boot=config.n_bootstrap, rng=rng, min_reliable_skill=config.min_reliable_skill,
+            )
+            for w in caught:
+                logger.warning(str(w.message))
 
     regression_results = {
         "Benchmark\n(Real Poverty Data)": {
@@ -125,6 +132,9 @@ def run_full_pipeline(
             "data_source": data_source,
             "timings": timer.as_dict(),
             "chart_path": chart_path,
+            "skill": skill,
+            "skill_reliable": skill_reliable,
+            "min_reliable_skill": config.min_reliable_skill,
         }
         report_path = build_markdown_report(report_context, os.path.join(out_dir, "report.md"))
 
@@ -137,6 +147,8 @@ def run_full_pipeline(
         "timings": timer.as_dict(),
         "report_path": report_path,
         "chart_path": chart_path,
+        "skill": skill,
+        "skill_reliable": skill_reliable,
     }
 
 
@@ -156,6 +168,9 @@ def _print_summary(results: Dict[str, Any]) -> None:
     print(f"\n  Naive attenuation   : {perf['attenuation_pct']:.1f}%")
     print(f"  Gap closed          : {perf['gap_closed_pct']:.1f}%")
 
+    print(f"\n  Classifier skill (TPR+TNR-1): {results['skill']:.3f}", end="")
+    print(" [RELIABLE]" if results["skill_reliable"] else " [UNRELIABLE - see warning above]")
+
     print(f"\nReport written to: {results['report_path']}")
 
 
@@ -170,6 +185,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--poverty-quantile", type=float, default=1.0 / 3.0)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--n-bootstrap", type=int, default=300)
+    parser.add_argument(
+        "--min-reliable-skill", type=float, default=0.2,
+        help="Warn when estimated TPR+TNR-1 falls below this (default 0.2, from "
+             "paper/manuscript.tex Section 5.2). The correction's denominator "
+             "amplifies validation-sample noise near zero skill; below this "
+             "threshold treat the corrected estimate as unreliable.",
+    )
     parser.add_argument("--output-dir", type=str, default=None)
     parser.add_argument("-v", "--verbose", action="store_true")
     return parser
@@ -179,7 +201,10 @@ def main(argv=None) -> int:
     args = build_arg_parser().parse_args(argv)
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING, format="%(levelname)s: %(message)s")
 
-    config = PipelineConfig(seed=args.seed, poverty_quantile=args.poverty_quantile, n_bootstrap=args.n_bootstrap)
+    config = PipelineConfig(
+        seed=args.seed, poverty_quantile=args.poverty_quantile, n_bootstrap=args.n_bootstrap,
+        min_reliable_skill=args.min_reliable_skill,
+    )
     if args.data_path:
         config.real_data_path = args.data_path
     if args.output_dir:

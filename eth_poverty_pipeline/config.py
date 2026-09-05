@@ -48,6 +48,15 @@ class PipelineConfig:
 
     n_bootstrap: int = 300
 
+    # Below this, a corrected estimate is flagged unreliable rather than
+    # trusted at face value - see econometrics/bias_correction.py's module
+    # docstring and paper/manuscript.tex Section 5.2 for why: the
+    # correction's denominator (TPR+TNR-1) amplifies validation-sample
+    # noise as it nears zero, regardless of how accurate the classifier
+    # truly is. Provisional threshold, calibrated to one accuracy level
+    # and one sample size in the manuscript - not a universal constant.
+    min_reliable_skill: float = 0.2
+
     output_dir: str = field(default=OUTPUT_DIR)
 
     def ensure_output_dir(self) -> str:

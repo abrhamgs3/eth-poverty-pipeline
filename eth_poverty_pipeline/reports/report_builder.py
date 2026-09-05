@@ -54,6 +54,25 @@ def build_markdown_report(context: Dict[str, Any], out_path: str) -> str:
         "",
     ]
 
+    if "skill" in context:
+        status = "RELIABLE" if context["skill_reliable"] else "**UNRELIABLE**"
+        lines += [
+            f"- Classifier skill (TPR+TNR-1): {context['skill']:.3f} - {status} "
+            f"(threshold: {context['min_reliable_skill']})",
+        ]
+        if not context["skill_reliable"]:
+            lines += [
+                "",
+                "> **Warning**: estimated classifier skill is below the reliability "
+                "threshold. The correction's denominator amplifies validation-sample "
+                "noise as it approaches zero - the corrected estimate above can diverge "
+                "by orders of magnitude even when the underlying classifier is "
+                "genuinely accurate (see `paper/manuscript.tex`, Section 5.2, for a "
+                "demonstrated 5-order-of-magnitude divergence at skill=0.114). Treat it "
+                "as unreliable; a larger validation sample is the fix.",
+            ]
+        lines.append("")
+
     if "chart_path" in context:
         rel = os.path.relpath(context["chart_path"], os.path.dirname(out_path))
         lines += ["## Chart", "", f"![Poverty-to-HAZ effect comparison]({rel})", ""]

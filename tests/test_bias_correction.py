@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -52,11 +54,48 @@ def test_bootstrap_inference_returns_valid_structure():
         "D_pred": rng.binomial(1, 0.3, 200),
     })
 
-    results = run_bootstrap_inference(
-        df, y_col="haz", x_noisy_col="D_pred", tpr=0.8, tnr=0.8, n_boot=50, rng=rng,
-    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # tpr=tnr=0.8 -> skill=0.6, well above default threshold
+        results = run_bootstrap_inference(
+            df, y_col="haz", x_noisy_col="D_pred", tpr=0.8, tnr=0.8, n_boot=50, rng=rng,
+        )
 
     for key in ("beta_0", "beta_1"):
         assert key in results
         assert set(results[key]) == {"estimate", "se", "ci"}
         assert len(results[key]["ci"]) == 2
+
+
+def test_low_skill_estimate_warns_but_still_returns_a_result():
+    # tpr=0.55, tnr=0.55 -> skill=0.10: positive (won't raise) but below the
+    # default 0.2 reliability threshold - this is the regime documented in
+    # paper/manuscript.tex Section 5.2, where the correction can diverge by
+    # orders of magnitude from validation-sample noise alone.
+    rng = np.random.default_rng(1)
+    df = pd.DataFrame({
+        "haz": rng.normal(-1.5, 1.2, 100),
+        "D_pred": rng.binomial(1, 0.3, 100),
+    })
+
+    with pytest.warns(UserWarning, match="below the min_reliable_skill threshold"):
+        results = run_bootstrap_inference(
+            df, y_col="haz", x_noisy_col="D_pred", tpr=0.55, tnr=0.55, n_boot=20, rng=rng,
+        )
+
+    assert "estimate" in results["beta_1"]  # still computes - a warning, not a failure
+
+
+def test_min_reliable_skill_threshold_is_configurable():
+    rng = np.random.default_rng(2)
+    df = pd.DataFrame({
+        "haz": rng.normal(-1.5, 1.2, 100),
+        "D_pred": rng.binomial(1, 0.3, 100),
+    })
+
+    # skill=0.10 is below the default (0.2) but above a lowered threshold.
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        run_bootstrap_inference(
+            df, y_col="haz", x_noisy_col="D_pred", tpr=0.55, tnr=0.55,
+            n_boot=20, rng=rng, min_reliable_skill=0.05,
+        )
