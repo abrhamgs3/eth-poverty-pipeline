@@ -2,6 +2,9 @@
 
 [![Tests](https://github.com/abrhamgs3/eth-poverty-pipeline/actions/workflows/tests.yml/badge.svg)](https://github.com/abrhamgs3/eth-poverty-pipeline/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+**At a glance:** Poverty mapping for Ethiopia. An AI screen classifies households as poor/non-poor from short field notes; a Rogan-Gladen econometric correction fixes the attenuation bias this introduces. Naive AI-screened estimate attenuates poverty's effect on child health by 43%; the correction recovers 94% of the gap.
+**Data:** Real World Bank Ethiopia Socioeconomic Survey panel (ESS/ERSS 2011-2015, ~4,850 household-waves); child health outcome.
+**Stack:** Python (pandas, scikit-learn), Pydantic, pytest, GitHub Actions. Manuscript in preparation.
 
 A staged, tested pipeline demonstrating a real problem in applied
 development economics: using an AI-screened poverty proxy as a regressor
